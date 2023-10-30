@@ -1,0 +1,7 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+  package="com.vladih.computer_vision.flutter_vision">
+    <!--enable this for storing  bitmap-->
+    <!--<application android:requestLegacyExternalStorage="true">
+    </application>-->
+    <!-- <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="27" /> -->
+</manifest>
