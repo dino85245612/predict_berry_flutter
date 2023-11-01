@@ -5,7 +5,6 @@ import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:flutter_vision/flutter_vision.dart';
 import 'package:flutter_vision_example/yoloImage.dart';
 import 'package:flutter_vision_example/yoloVideo.dart';
-import 'package:image/image.dart' as image;
 
 enum Options { none, imagev5, imagev8, imagev8seg, frame, tesseract, vision }
 

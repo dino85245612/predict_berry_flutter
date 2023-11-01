@@ -4,8 +4,10 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_vision/flutter_vision.dart';
+import 'package:flutter_vision_example/BunchPosition.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
+import 'dart:ui' as ui;
 
 class YoloImageV5 extends StatefulWidget {
   final FlutterVision vision;
@@ -22,6 +24,8 @@ class _YoloImageV5State extends State<YoloImageV5> {
   int imageWidth = 1;
   bool isLoaded = false;
   Image? whiteImage;
+  List<Uint8List>? listImage;
+
   @override
   void initState() {
     super.initState();
@@ -48,11 +52,18 @@ class _YoloImageV5State extends State<YoloImageV5> {
         ),
       );
     }
+
     return Stack(
       fit: StackFit.expand,
       children: [
         imageFile != null ? Image.file(imageFile!) : const SizedBox(),
-        whiteImage != null ? Positioned(child: whiteImage!) : SizedBox(),
+        // whiteImage != null ? Positioned(child: whiteImage!) : SizedBox(),
+        listImage != null
+            ? GridView.count(
+                crossAxisCount: 5,
+                children: createListImage(),
+              )
+            : SizedBox(),
         Align(
           alignment: Alignment.bottomCenter,
           child: Row(
@@ -71,7 +82,7 @@ class _YoloImageV5State extends State<YoloImageV5> {
               ),
               ElevatedButton(
                 onPressed: createWhiteImages,
-                child: const Text("SaveToWhite"),
+                child: const Text("Modify"),
               )
             ],
           ),
@@ -163,9 +174,19 @@ class _YoloImageV5State extends State<YoloImageV5> {
     }).toList();
   }
 
-  Future<img.Image?> createWhiteImage(Map<String, dynamic> result) async {
+  Future<Image?> createWhiteImage(Map<String, dynamic> result,
+      BunchPosition? bunchPosition, List<Uint8List> listTempImage) async {
+    const double meanR = 0.485;
+    const double meanG = 0.456;
+    const double meanB = 0.406;
+    const double stdR = 0.229;
+    const double stdG = 0.224;
+    const double stdB = 0.225;
+
     Uint8List byte = await imageFile!.readAsBytes();
     var image = img.decodeJpg(byte);
+
+    print("Start to  modify picture");
 
     final x0 = result["box"][0].floor();
     final y0 = result["box"][1].floor();
@@ -174,6 +195,7 @@ class _YoloImageV5State extends State<YoloImageV5> {
     final width = x1 - x0;
     final height = y1 - y0;
 
+    //!Painting white color
     final range = image?.getRange(x0, y0, width, height);
     while (range != null && range.moveNext()) {
       final pixel = range.current;
@@ -181,9 +203,18 @@ class _YoloImageV5State extends State<YoloImageV5> {
       pixel.g = pixel.maxChannelValue;
       pixel.b = pixel.maxChannelValue;
     }
-    // Image copyCrop(Image src, { required int x, required int y, required int width, required int height, num radius = 0})
-    // image = img.copyCrop(image!, x: result["tag"]=, y: y, width: width, height: height)
 
+    //!Crop a image depends on bunch position.
+    // Image copyCrop(Image src, { required int x, required int y, required int width, required int height, num radius = 0})
+    image = img.copyCrop(
+      image!,
+      x: bunchPosition!.x0!,
+      y: bunchPosition.y0!,
+      width: bunchPosition.width(),
+      height: bunchPosition.height(),
+    );
+
+    //!Resize to 224x224
     // Image copyResize(Image src, { int? width, int? height, bool? maintainAspect, Color? backgroundColor, Interpolation interpolation = Interpolation.nearest })
     image = img.copyResize(
       image!,
@@ -191,20 +222,83 @@ class _YoloImageV5State extends State<YoloImageV5> {
       height: 224,
       maintainAspect: false,
     );
+    //! Normalize the image
+    // image = img.colorOffset(red: )
+    // for (int y = 0; y < image.height; y++) {
+    //   for (int x = 0; x < image.width; x++) {
+    //     final pixel = image.getPixel(x, y);
+
+    //     final r = ((img.getRed(pixel) / 255.0 - meanR) / stdR);
+    //     final g = ((img.getGreen(pixel) / 255.0 - meanG) / stdG);
+    //     final b = ((img.getBlue(pixel) / 255.0 - meanB) / stdB);
+
+    //     final normalizedColor = image.setPixel(x, y, img.getColor(r.round(), g.round(), b.round()));
+
+    //     image.setPixel(x, y, normalizedColor);
+    //   }
+    // }
+
     Uint8List whiteBytes = img.encodePng(image);
+
+    // listImage?.clear();
+
+    listTempImage.add(whiteBytes);
 
     setState(() {
       yoloResults.clear();
       whiteImage = Image?.memory(whiteBytes);
+      listImage = listTempImage;
     });
+    // print(listImage.length);
+    return whiteImage;
+  }
 
-    return image;
+  Future<BunchPosition?> findPositionBunch(Map<String, dynamic> result) async {
+    if (result["tag"] == "bunch") {
+      var bunch = result["tag"];
+      BunchPosition bunchPosition = BunchPosition(
+        x0: result["box"][0].floor(),
+        y0: result["box"][1].floor(),
+        x1: result["box"][2].round(),
+        y1: result["box"][3].round(),
+      );
+
+      print(
+          "Position ${bunch}: ${bunchPosition.x0}, ${bunchPosition.x1}, ${bunchPosition.y0}, ${bunchPosition.y1}");
+
+      return bunchPosition;
+    } else {
+      print("Not bunch.");
+    }
+    return null;
   }
 
   Future<void> createWhiteImages() async {
     // await createWhiteImage(yoloResults[0]);
+    BunchPosition? bunchPosition = BunchPosition();
+
     await Future.wait(yoloResults.map((result) async {
-      await createWhiteImage(result);
+      bunchPosition = await findPositionBunch(result);
     }));
+
+    List<Uint8List> listTempImage = <Uint8List>[];
+    await Future.wait(yoloResults.map((result) async {
+      await createWhiteImage(result, bunchPosition, listTempImage);
+    }));
+
+    imageFile = null;
+  }
+
+  List<Widget> createListImage() {
+    List<Widget> listImageWidget = <Widget>[];
+    print("build-> ${listImage?.length}");
+
+    if (listImage != null) {
+      for (int i = 0; i < listImage!.length; i++) {
+        listImageWidget.add(Image.memory(listImage![i]));
+        // print(listImage![i]);
+      }
+    }
+    return listImageWidget;
   }
 }
