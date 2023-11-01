@@ -102,36 +102,3 @@ class _MyAppState extends State<MyApp> {
     return const Center(child: Text("Choose Task"));
   }
 }
-
-image.Image padToSquare(image.Image image, int size, Color color) {
-  return image;
-}
-
-image.Image resize(image.Image image, int width, int height) {
-  return image;
-}
-
-image.Image normalize(List<double> mean, List<double> std, image.Image image) {
-  return image;
-}
-
-// Define your custom image transformation function
-image.Image berryRemovingTransforms(image.Image inputImage) {
-  // Pad to square with black padding
-  int desiredSize = 224;
-  inputImage = padToSquare(inputImage, desiredSize, Colors.white);
-
-  // Resize the image
-  inputImage = resize(inputImage, 224, 224);
-
-  // Convert to Tensor
-  // final tensor = TensorImage.fromImage(inputImage);
-
-  // Normalize the image
-  //todo by yourself
-  // tensor.normalize(mean: [0.485, 0.456, 0.406], std: [0.229, 0.224, 0.225]);
-  inputImage =
-      normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225], inputImage);
-  // Return the transformed image
-  return inputImage;
-}
