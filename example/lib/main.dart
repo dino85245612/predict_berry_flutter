@@ -135,19 +135,3 @@ image.Image berryRemovingTransforms(image.Image inputImage) {
   // Return the transformed image
   return inputImage;
 }
-
-// Image createCuttingInput(
-//     List<int> berryBboxXyxy, List<int> selectedBunchBbox, Image bgrImage) {
-//   // berryBboxXyxy = berryBboxXyxy.map((doubleValue) => doubleValue.toInt()).toList();
-//   // Image targetImage = bgrImage;
-//   // for (int y = berryBboxXyxy[1]; y < berryBboxXyxy[3]; y++) {
-//   // for (int x = berryBboxXyxy[0]; x < berryBboxXyxy[2]; x++) {
-//   // targetImage.setPixel(x, y, getColor(255, 255, 255));
-//   // }
-//   // }
-//   berryBboxXyxy targetImage = targetImage.crop(selectedBunchBbox[0],
-//       selectedBunchBbox[1], selectedBunchBbox[2], selectedBunchBbox[3]);
-//   return berryRemovingTransforms(targetImage);
-// }
-
-

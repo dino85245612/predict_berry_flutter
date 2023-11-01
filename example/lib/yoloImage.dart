@@ -70,7 +70,7 @@ class _YoloImageV5State extends State<YoloImageV5> {
                 width: 8,
               ),
               ElevatedButton(
-                onPressed: creatWhiteImages,
+                onPressed: createWhiteImages,
                 child: const Text("SaveToWhite"),
               )
             ],
@@ -163,9 +163,9 @@ class _YoloImageV5State extends State<YoloImageV5> {
     }).toList();
   }
 
-  Future<img.Image?> creatWhiteImage(Map<String, dynamic> result) async {
+  Future<img.Image?> createWhiteImage(Map<String, dynamic> result) async {
     Uint8List byte = await imageFile!.readAsBytes();
-    final image = img.decodeJpg(byte);
+    var image = img.decodeJpg(byte);
 
     final x0 = result["box"][0].floor();
     final y0 = result["box"][1].floor();
@@ -181,21 +181,30 @@ class _YoloImageV5State extends State<YoloImageV5> {
       pixel.g = pixel.maxChannelValue;
       pixel.b = pixel.maxChannelValue;
     }
-    Uint8List whiteBytes = img.encodePng(image!);
+    // Image copyCrop(Image src, { required int x, required int y, required int width, required int height, num radius = 0})
+    // image = img.copyCrop(image!, x: result["tag"]=, y: y, width: width, height: height)
+
+    // Image copyResize(Image src, { int? width, int? height, bool? maintainAspect, Color? backgroundColor, Interpolation interpolation = Interpolation.nearest })
+    image = img.copyResize(
+      image!,
+      width: 224,
+      height: 224,
+      maintainAspect: false,
+    );
+    Uint8List whiteBytes = img.encodePng(image);
+
     setState(() {
+      yoloResults.clear();
       whiteImage = Image?.memory(whiteBytes);
-      //   await file.writeAsBytes(
-      //     bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes));
-      // return file;
     });
 
     return image;
   }
 
-  Future<void> creatWhiteImages() async {
-    await creatWhiteImage(yoloResults[0]);
-    // yoloResults.map((result) async {
-    //   await creatWhiteImage(result);
-    // });
+  Future<void> createWhiteImages() async {
+    // await createWhiteImage(yoloResults[0]);
+    await Future.wait(yoloResults.map((result) async {
+      await createWhiteImage(result);
+    }));
   }
 }
