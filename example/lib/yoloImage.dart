@@ -204,6 +204,27 @@ class _YoloImageV5State extends State<YoloImageV5> {
       pixel.b = pixel.maxChannelValue;
     }
 
+    final rangeImage = image?.getRange(0, 0, imageWidth, imageHeight);
+    while (rangeImage != null && rangeImage.moveNext()) {
+      final pixel = rangeImage.current;
+      pixel.r.toDouble();
+      pixel.g.toDouble();
+      pixel.b.toDouble();
+      // pixel.r = pixel.maxChannelValue;
+      // pixel.g = pixel.maxChannelValue;
+      // pixel.b = pixel.maxChannelValue;
+
+      print("Before pirxel r -> ${pixel.r}");
+      print("Before pirxel g -> ${pixel.g}");
+      print("Before pirxel b -> ${pixel.b}");
+      pixel.r = (((pixel.r).toDouble() / 255.0 - meanR) / stdR);
+      pixel.g = (((pixel.g).toDouble() / 255.0 - meanG) / stdG);
+      pixel.b = (((pixel.b).toDouble() / 255.0 - meanB) / stdB);
+      print("After pirxel r -> ${pixel.r}");
+      print("After pirxel g -> ${pixel.g}");
+      print("After pirxel b -> ${pixel.b}");
+    }
+
     //!Crop a image depends on bunch position.
     // Image copyCrop(Image src, { required int x, required int y, required int width, required int height, num radius = 0})
     image = img.copyCrop(
@@ -228,9 +249,9 @@ class _YoloImageV5State extends State<YoloImageV5> {
     //   for (int x = 0; x < image.width; x++) {
     //     final pixel = image.getPixel(x, y);
 
-    //     final r = ((img.getRed(pixel) / 255.0 - meanR) / stdR);
-    //     final g = ((img.getGreen(pixel) / 255.0 - meanG) / stdG);
-    //     final b = ((img.getBlue(pixel) / 255.0 - meanB) / stdB);
+    // final r = ((img.getRed(pixel) / 255.0 - meanR) / stdR);
+    // final g = ((img.getGreen(pixel) / 255.0 - meanG) / stdG);
+    // final b = ((img.getBlue(pixel) / 255.0 - meanB) / stdB);
 
     //     final normalizedColor = image.setPixel(x, y, img.getColor(r.round(), g.round(), b.round()));
 
@@ -239,7 +260,8 @@ class _YoloImageV5State extends State<YoloImageV5> {
     // }
 
     Uint8List whiteBytes = img.encodePng(image);
-
+    // int lenghtShape = whiteBytes.length;
+    // print(lenghtShape);
     // listImage?.clear();
 
     listTempImage.add(whiteBytes);
