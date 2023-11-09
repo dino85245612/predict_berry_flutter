@@ -184,7 +184,10 @@ class _YoloImageV5State extends State<YoloImageV5> {
     const double stdB = 0.225;
 
     Uint8List byte = await imageFile!.readAsBytes();
+
     var image = img.decodeJpg(byte);
+    image = image!.convert(format: img.Format.float64);
+    // img.Image float_image = image!.convert(format: img.Format.float64);
 
     print("Start to  modify picture");
 
@@ -202,27 +205,6 @@ class _YoloImageV5State extends State<YoloImageV5> {
       pixel.r = pixel.maxChannelValue;
       pixel.g = pixel.maxChannelValue;
       pixel.b = pixel.maxChannelValue;
-    }
-
-    final rangeImage = image?.getRange(0, 0, imageWidth, imageHeight);
-    while (rangeImage != null && rangeImage.moveNext()) {
-      final pixel = rangeImage.current;
-      pixel.r.toDouble();
-      pixel.g.toDouble();
-      pixel.b.toDouble();
-      // pixel.r = pixel.maxChannelValue;
-      // pixel.g = pixel.maxChannelValue;
-      // pixel.b = pixel.maxChannelValue;
-
-      print("Before pirxel r -> ${pixel.r}");
-      print("Before pirxel g -> ${pixel.g}");
-      print("Before pirxel b -> ${pixel.b}");
-      pixel.r = (((pixel.r).toDouble() / 255.0 - meanR) / stdR);
-      pixel.g = (((pixel.g).toDouble() / 255.0 - meanG) / stdG);
-      pixel.b = (((pixel.b).toDouble() / 255.0 - meanB) / stdB);
-      print("After pirxel r -> ${pixel.r}");
-      print("After pirxel g -> ${pixel.g}");
-      print("After pirxel b -> ${pixel.b}");
     }
 
     //!Crop a image depends on bunch position.
@@ -243,27 +225,20 @@ class _YoloImageV5State extends State<YoloImageV5> {
       height: 224,
       maintainAspect: false,
     );
+
     //! Normalize the image
-    // image = img.colorOffset(red: )
-    // for (int y = 0; y < image.height; y++) {
-    //   for (int x = 0; x < image.width; x++) {
-    //     final pixel = image.getPixel(x, y);
+    final rangeImage = image?.getRange(0, 0, imageWidth, imageHeight);
+    while (rangeImage != null && rangeImage.moveNext()) {
+      final pixel = rangeImage.current;
+      pixel.r = (((pixel.r).toDouble() / 255.0 - meanR) / stdR);
+      pixel.g = (((pixel.g).toDouble() / 255.0 - meanG) / stdG);
+      pixel.b = (((pixel.b).toDouble() / 255.0 - meanB) / stdB);
+    }
 
-    // final r = ((img.getRed(pixel) / 255.0 - meanR) / stdR);
-    // final g = ((img.getGreen(pixel) / 255.0 - meanG) / stdG);
-    // final b = ((img.getBlue(pixel) / 255.0 - meanB) / stdB);
+    // img.Image u8 = float_image.convert(format: img.Format.uint8);
+    Uint8List whiteBytes = img.encodePng(image!);
 
-    //     final normalizedColor = image.setPixel(x, y, img.getColor(r.round(), g.round(), b.round()));
-
-    //     image.setPixel(x, y, normalizedColor);
-    //   }
-    // }
-
-    Uint8List whiteBytes = img.encodePng(image);
-    // int lenghtShape = whiteBytes.length;
-    // print(lenghtShape);
     // listImage?.clear();
-
     listTempImage.add(whiteBytes);
 
     setState(() {
@@ -271,7 +246,7 @@ class _YoloImageV5State extends State<YoloImageV5> {
       whiteImage = Image?.memory(whiteBytes);
       listImage = listTempImage;
     });
-    // print(listImage.length);
+
     return whiteImage;
   }
 
@@ -313,12 +288,11 @@ class _YoloImageV5State extends State<YoloImageV5> {
 
   List<Widget> createListImage() {
     List<Widget> listImageWidget = <Widget>[];
-    print("build-> ${listImage?.length}");
+    print("buildListImage-> ${listImage?.length}");
 
     if (listImage != null) {
       for (int i = 0; i < listImage!.length; i++) {
         listImageWidget.add(Image.memory(listImage![i]));
-        // print(listImage![i]);
       }
     }
     return listImageWidget;
