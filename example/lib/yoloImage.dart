@@ -23,7 +23,7 @@ class _YoloImageV5State extends State<YoloImageV5> {
   int imageHeight = 1;
   int imageWidth = 1;
   bool isLoaded = false;
-  Image? whiteImage;
+  Image? displayImage;
   List<Uint8List>? listImage;
 
   @override
@@ -81,7 +81,7 @@ class _YoloImageV5State extends State<YoloImageV5> {
                 width: 8,
               ),
               ElevatedButton(
-                onPressed: createWhiteImages,
+                onPressed: displayModifyImage,
                 child: const Text("Modify"),
               )
             ],
@@ -174,7 +174,7 @@ class _YoloImageV5State extends State<YoloImageV5> {
     }).toList();
   }
 
-  Future<Image?> createWhiteImage(Map<String, dynamic> result,
+  Future<Image?> modifyImage(Map<String, dynamic> result,
       BunchPosition? bunchPosition, List<Uint8List> listTempImage) async {
     const double meanR = 0.485;
     const double meanG = 0.456;
@@ -184,10 +184,9 @@ class _YoloImageV5State extends State<YoloImageV5> {
     const double stdB = 0.225;
 
     Uint8List byte = await imageFile!.readAsBytes();
-
     var image = img.decodeJpg(byte);
     image = image!.convert(format: img.Format.float64);
-    // img.Image float_image = image!.convert(format: img.Format.float64);
+    print(image.maxChannelValue);
 
     print("Start to  modify picture");
 
@@ -199,18 +198,20 @@ class _YoloImageV5State extends State<YoloImageV5> {
     final height = y1 - y0;
 
     //!Painting white color
-    final range = image?.getRange(x0, y0, width, height);
-    while (range != null && range.moveNext()) {
-      final pixel = range.current;
-      pixel.r = pixel.maxChannelValue;
-      pixel.g = pixel.maxChannelValue;
-      pixel.b = pixel.maxChannelValue;
+    if (result["tag"] == "bunch") {
+      final range = image?.getRange(x0, y0, width, height);
+      while (range != null && range.moveNext()) {
+        final pixel = range.current;
+        pixel.r = pixel.maxChannelValue;
+        pixel.g = pixel.maxChannelValue;
+        pixel.b = pixel.maxChannelValue;
+      }
     }
 
     //!Crop a image depends on bunch position.
     // Image copyCrop(Image src, { required int x, required int y, required int width, required int height, num radius = 0})
     image = img.copyCrop(
-      image!,
+      image,
       x: bunchPosition!.x0!,
       y: bunchPosition.y0!,
       width: bunchPosition.width(),
@@ -220,7 +221,7 @@ class _YoloImageV5State extends State<YoloImageV5> {
     //!Resize to 224x224
     // Image copyResize(Image src, { int? width, int? height, bool? maintainAspect, Color? backgroundColor, Interpolation interpolation = Interpolation.nearest })
     image = img.copyResize(
-      image!,
+      image,
       width: 224,
       height: 224,
       maintainAspect: false,
@@ -230,24 +231,32 @@ class _YoloImageV5State extends State<YoloImageV5> {
     final rangeImage = image?.getRange(0, 0, imageWidth, imageHeight);
     while (rangeImage != null && rangeImage.moveNext()) {
       final pixel = rangeImage.current;
-      pixel.r = (((pixel.r).toDouble() / 255.0 - meanR) / stdR);
-      pixel.g = (((pixel.g).toDouble() / 255.0 - meanG) / stdG);
-      pixel.b = (((pixel.b).toDouble() / 255.0 - meanB) / stdB);
+      // pixel.r = (((pixel.r).toDouble() / 255.0 - meanR) / stdR);
+      // pixel.g = (((pixel.g).toDouble() / 255.0 - meanG) / stdG);
+      // pixel.b = (((pixel.b).toDouble() / 255.0 - meanB) / stdB);
+
+      pixel.rNormalized = ((pixel.rNormalized - meanR) / stdR);
+      pixel.gNormalized = ((pixel.gNormalized - meanG) / stdG);
+      pixel.bNormalized = ((pixel.bNormalized - meanB) / stdB);
     }
 
-    // img.Image u8 = float_image.convert(format: img.Format.uint8);
-    Uint8List whiteBytes = img.encodePng(image!);
+    // image.convert(format: img.Format.uint8);
+    // image = img.normalize(image, min: -30, max: 30);
+
+    Uint8List imageBytes = img.encodeJpg(image);
+    // image = image.convert(format: img.Format.uint8);
+    // print(image.maxChannelValue);
 
     // listImage?.clear();
-    listTempImage.add(whiteBytes);
+    listTempImage.add(imageBytes);
 
     setState(() {
       yoloResults.clear();
-      whiteImage = Image?.memory(whiteBytes);
+      displayImage = Image?.memory(imageBytes);
       listImage = listTempImage;
     });
 
-    return whiteImage;
+    return displayImage;
   }
 
   Future<BunchPosition?> findPositionBunch(Map<String, dynamic> result) async {
@@ -270,7 +279,7 @@ class _YoloImageV5State extends State<YoloImageV5> {
     return null;
   }
 
-  Future<void> createWhiteImages() async {
+  Future<void> displayModifyImage() async {
     // await createWhiteImage(yoloResults[0]);
     BunchPosition? bunchPosition = BunchPosition();
 
@@ -280,7 +289,7 @@ class _YoloImageV5State extends State<YoloImageV5> {
 
     List<Uint8List> listTempImage = <Uint8List>[];
     await Future.wait(yoloResults.map((result) async {
-      await createWhiteImage(result, bunchPosition, listTempImage);
+      await modifyImage(result, bunchPosition, listTempImage);
     }));
 
     imageFile = null;
