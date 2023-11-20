@@ -36,8 +36,8 @@ android {
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId "com.vladih.computer_vision.flutter_vision_example"
-        minSdkVersion 21
-        targetSdkVersion 27
+        minSdkVersion 22
+        targetSdkVersion 31
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
     }

@@ -3,11 +3,12 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_vision/flutter_vision.dart';
 import 'package:flutter_vision_example/BunchPosition.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
-import 'dart:ui' as ui;
+import 'package:pytorch_lite/pytorch_lite.dart';
 
 class YoloImageV5 extends StatefulWidget {
   final FlutterVision vision;
@@ -25,10 +26,14 @@ class _YoloImageV5State extends State<YoloImageV5> {
   bool isLoaded = false;
   Image? displayImage;
   List<Uint8List>? listImage;
+  List<ResultObjectDetection?> objDetect = [];
+  late ClassificationModel _imageModel;
+  // List<double?>? testIndex;
 
   @override
   void initState() {
     super.initState();
+    loadPredictModel();
     loadYoloModel().then((value) {
       setState(() {
         yoloResults = [];
@@ -94,7 +99,7 @@ class _YoloImageV5State extends State<YoloImageV5> {
 
   Future<void> loadYoloModel() async {
     await widget.vision.loadYoloModel(
-        labels: 'assets/labels.txt',
+        labels: 'assets/labels_berry.txt',
         modelPath: 'assets/yolov5s_2cls15_fp16_640.tflite',
         modelVersion: "yolov5",
         quantization: false,
@@ -103,6 +108,22 @@ class _YoloImageV5State extends State<YoloImageV5> {
     setState(() {
       isLoaded = true;
     });
+  }
+
+  Future loadPredictModel() async {
+    String pathImageModel = "assets/predict_model.pt";
+    try {
+      _imageModel = await PytorchLite.loadClassificationModel(
+          pathImageModel, 224, 224, 2,
+          labelPath: "assets/labels_predict.txt");
+      print("Load model successful");
+    } catch (e) {
+      if (e is PlatformException) {
+        print("only supported for android, Error is $e");
+      } else {
+        print("Error is $e");
+      }
+    }
   }
 
   Future<void> pickImage() async {
@@ -186,7 +207,6 @@ class _YoloImageV5State extends State<YoloImageV5> {
     Uint8List byte = await imageFile!.readAsBytes();
     var image = img.decodeJpg(byte);
     image = image!.convert(format: img.Format.float64);
-    print(image.maxChannelValue);
 
     print("Start to  modify picture");
 
@@ -198,7 +218,7 @@ class _YoloImageV5State extends State<YoloImageV5> {
     final height = y1 - y0;
 
     //!Painting white color
-    if (result["tag"] == "bunch") {
+    if (result["tag"] == "berry") {
       final range = image?.getRange(x0, y0, width, height);
       while (range != null && range.moveNext()) {
         final pixel = range.current;
@@ -211,7 +231,7 @@ class _YoloImageV5State extends State<YoloImageV5> {
     //!Crop a image depends on bunch position.
     // Image copyCrop(Image src, { required int x, required int y, required int width, required int height, num radius = 0})
     image = img.copyCrop(
-      image,
+      image!,
       x: bunchPosition!.x0!,
       y: bunchPosition.y0!,
       width: bunchPosition.width(),
@@ -231,22 +251,21 @@ class _YoloImageV5State extends State<YoloImageV5> {
     final rangeImage = image?.getRange(0, 0, imageWidth, imageHeight);
     while (rangeImage != null && rangeImage.moveNext()) {
       final pixel = rangeImage.current;
+      //?For real modify variable
       // pixel.r = (((pixel.r).toDouble() / 255.0 - meanR) / stdR);
       // pixel.g = (((pixel.g).toDouble() / 255.0 - meanG) / stdG);
       // pixel.b = (((pixel.b).toDouble() / 255.0 - meanB) / stdB);
 
+      //?For demo image.
       pixel.rNormalized = ((pixel.rNormalized - meanR) / stdR);
       pixel.gNormalized = ((pixel.gNormalized - meanG) / stdG);
       pixel.bNormalized = ((pixel.bNormalized - meanB) / stdB);
     }
 
     // image.convert(format: img.Format.uint8);
-    // image = img.normalize(image, min: -30, max: 30);
 
     Uint8List imageBytes = img.encodeJpg(image);
-    // image = image.convert(format: img.Format.uint8);
-    // print(image.maxChannelValue);
-
+    runPredictModel(imageBytes);
     // listImage?.clear();
     listTempImage.add(imageBytes);
 
@@ -280,7 +299,7 @@ class _YoloImageV5State extends State<YoloImageV5> {
   }
 
   Future<void> displayModifyImage() async {
-    // await createWhiteImage(yoloResults[0]);
+    // await modifyImage(yoloResults[0]);
     BunchPosition? bunchPosition = BunchPosition();
 
     await Future.wait(yoloResults.map((result) async {
@@ -297,7 +316,7 @@ class _YoloImageV5State extends State<YoloImageV5> {
 
   List<Widget> createListImage() {
     List<Widget> listImageWidget = <Widget>[];
-    print("buildListImage-> ${listImage?.length}");
+    // print("buildListImage-> ${listImage?.length}");
 
     if (listImage != null) {
       for (int i = 0; i < listImage!.length; i++) {
@@ -305,5 +324,43 @@ class _YoloImageV5State extends State<YoloImageV5> {
       }
     }
     return listImageWidget;
+  }
+
+  Future<void> runPredictModel(Uint8List imageBytes) async {
+    objDetect = [];
+
+    String label = await _imageModel!.getImagePrediction(imageBytes);
+    label = "${label ?? ""}";
+    print("label -> ${label}");
+
+    List<double?>? predictionList =
+        await _imageModel.getImagePredictionList(imageBytes);
+    // testIndex!.add(predictionList);
+    // print(testIndex!.length);
+    print("predictionList -> ${predictionList}");
+
+    // List<double?>? predictionListProbabilities =
+    //     await _imageModel!.getImagePredictionListProbabilities(imageBytes);
+    // //Gettting the highest Probability
+    // double maxScoreProbability = double.negativeInfinity;
+    // double sumOfProbabilities = 0;
+    // int index = 0;
+    // for (int i = 0; i < predictionListProbabilities!.length; i++) {
+    //   if (predictionListProbabilities[i]! > maxScoreProbability) {
+    //     maxScoreProbability = predictionListProbabilities[i]!;
+    //     sumOfProbabilities =
+    //         sumOfProbabilities + predictionListProbabilities[i]!;
+    //     index = i;
+    //   }
+    // }
+    // print("predictionListProbabilities -> ${predictionListProbabilities}");
+    // print("index -> ${index}");
+    // print("sumOfProbabilities -> ${sumOfProbabilities}");
+    // print("maxScoreProbability -> ${maxScoreProbability}");
+
+    setState(() {
+      //this.objDetect = objDetect;
+      // _image = File(image.path);
+    });
   }
 }
