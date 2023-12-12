@@ -1,10 +1,10 @@
-class BunchPosition {
+class BunchPositionModel {
   late int? x0;
   late int? y0;
   late int? x1;
   late int? y1;
 
-  BunchPosition({
+  BunchPositionModel({
     this.x0,
     this.y0,
     this.x1,
