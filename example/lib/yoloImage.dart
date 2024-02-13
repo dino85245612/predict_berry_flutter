@@ -33,6 +33,9 @@ class _YoloImageV5State extends State<YoloImageV5> {
   late ClassificationModel imageModel;
   List<List<double>> listOfPredictionNumber = [];
   int? indexBerryRemove;
+  int countingBerry = 0;
+  bool isLoadingDetect = false;
+  bool isLoadingPredict = false;
 
   @override
   void initState() {
@@ -65,45 +68,98 @@ class _YoloImageV5State extends State<YoloImageV5> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        imageFile != null ? Image.file(imageFile!) : const SizedBox(),
-        // whiteImage != null ? Positioned(child: whiteImage!) : SizedBox(),
-
-        Align(
-          alignment: Alignment.bottomCenter,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+        Padding(
+          padding: const EdgeInsets.only(top: 60),
+          child: Align(
+              alignment: Alignment.topCenter,
+              child: Column(
+                // mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  TextButton(
-                    onPressed: pickImage,
-                    child: const Text("Pick image"),
-                  ),
-                  ElevatedButton(
-                    onPressed: yoloOnImage,
-                    child: const Text("Detect"),
-                  ),
-                  SizedBox(
-                    width: 8,
-                  ),
-                  ElevatedButton(
-                    onPressed: displayModifyImage,
-                    child: const Text("Modify"),
-                  ),
+                  DefaultTextStyle.merge(
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      child: Text('Number of Berries: ${countingBerry}')),
                 ],
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  displayBerryRemove(index: indexBerryRemove),
-                  SizedBox(
-                    width: 8,
-                  ),
-                  displayListBerryRemove(listBerry: listImage),
-                ],
+              )),
+        ),
+        imageFile != null
+            ? Image.file(
+                imageFile!,
               )
-            ],
+            : const SizedBox(),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    TextButton(
+                      onPressed: pickImage,
+                      child: const Text("Pick image"),
+                    ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        setState(() {
+                          isLoadingDetect = true;
+                        });
+                        await yoloOnImage();
+                        setState(() {
+                          isLoadingDetect = false;
+                        });
+                      },
+                      child: isLoadingDetect
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                            )
+                          : const Text("Detect"),
+                    ),
+                    const SizedBox(
+                      width: 8,
+                    ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        setState(() {
+                          isLoadingPredict = true;
+                        });
+                        await displayModifyImage();
+                        setState(() {
+                          isLoadingPredict = false;
+                        });
+                      },
+                      child: isLoadingPredict
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                            )
+                          : const Text("Predict"),
+                    ),
+                  ],
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    displayBerryRemove(index: indexBerryRemove),
+                    SizedBox(
+                      width: 8,
+                    ),
+                    displayListBerryRemove(listBerry: listImage),
+                  ],
+                )
+              ],
+            ),
           ),
         ),
         //! show boxes result
@@ -170,6 +226,7 @@ class _YoloImageV5State extends State<YoloImageV5> {
     if (result.isNotEmpty) {
       setState(() {
         yoloResults = result;
+        print("Yoloresult = ${yoloResults}");
       });
     }
   }
@@ -214,35 +271,49 @@ class _YoloImageV5State extends State<YoloImageV5> {
 
   Future<BunchPositionModel?> findPositionBunch(
       Map<String, dynamic> result) async {
+    int x0Bunch = 0;
+    int y0Bunch = 0;
+    int x1Bunch = 0;
+    int y1Bunch = 0;
+
     if (result["tag"] == "bunch") {
-      var bunch = result["tag"];
-      BunchPositionModel bunchPosition = BunchPositionModel(
-        x0: result["box"][0].floor(),
-        y0: result["box"][1].floor(),
-        x1: result["box"][2].round(),
-        y1: result["box"][3].round(),
-      );
+      // var bunch = result["tag"];
+      x0Bunch = result["box"][0].floor();
+      y0Bunch = result["box"][1].floor();
+      x1Bunch = result["box"][2].floor();
+      y1Bunch = result["box"][3].floor();
 
-      print(
-          "Position ${bunch}: ${bunchPosition.x0}, ${bunchPosition.x1}, ${bunchPosition.y0}, ${bunchPosition.y1}");
-
-      return bunchPosition;
+      // print(
+      // "Position ${bunch}: ${bunchPosition.x0}, ${bunchPosition.x1}, ${bunchPosition.y0}, ${bunchPosition.y1}");
     } else {
       print("Not bunch.");
     }
-    return null;
+    BunchPositionModel bunchPosition = BunchPositionModel(
+      x0: x0Bunch,
+      y0: y0Bunch,
+      x1: x1Bunch,
+      y1: y1Bunch,
+    );
+
+    return bunchPosition;
   }
 
   Future<void> displayModifyImage() async {
     BunchPositionModel? bunchPosition = BunchPositionModel();
     List<Uint8List> listTempImage = <Uint8List>[];
     Map<int, dynamic> resultModify = {};
+    int tempCountingBerry = 0;
+
+    // yoloOnImage();
 
     await Future.wait(yoloResults.map((result) async {
       bunchPosition = await findPositionBunch(result);
     }));
 
     await Future.wait(yoloResults.map((result) async {
+      if (result["tag"] == "berry") {
+        tempCountingBerry += 1;
+      }
       resultModify = await modifyImage(
           result: result,
           bunchPosition: bunchPosition,
@@ -258,13 +329,14 @@ class _YoloImageV5State extends State<YoloImageV5> {
 
     setState(() {
       indexBerryRemove = index;
+      countingBerry = tempCountingBerry;
     });
-
+    print("countingBerry-> ${tempCountingBerry}");
     // imageFile = null;
   }
 
   Widget displayBerryRemove({required int? index}) {
-    print("indexxxxxxxxxxxxxxx = ${index}");
+    print("index = ${index}");
     if (listImage != null && index != null) {
       Uint8List bytePredictBerry = listImage![index];
 

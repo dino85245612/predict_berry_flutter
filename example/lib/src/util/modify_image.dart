@@ -24,8 +24,9 @@ Future<Map<int, dynamic>> modifyImage({
   const double stdB = 0.225;
 
   Uint8List byte = await imageFile!.readAsBytes();
-  var image = img.decodeJpg(byte);
-  image = image!.convert(format: img.Format.float64);
+  var image = img.decodeImage(byte);
+  // var image = img.decodeImage(byte);
+  // image = image!.convert(format: img.Format.float64);
 
   print("Start to  modify picture");
 
@@ -47,10 +48,20 @@ Future<Map<int, dynamic>> modifyImage({
     }
   }
 
+  // if (result["tag"] == "berry") {
+  // image.fillRect(x0, y0, x1, y1, getColor(255, 255, 255));
+  // img.getColor(255, 255, 255);
+  // var color;
+
+  // image = img.fill(image, color: color);
+
+  // image = img.fillRect(x1: x0, y1: y0, x2: x1, y2: y1 color: color.maxChannelValue);
+  // }
+
   //!Crop a image depends on bunch position.
   // Image copyCrop(Image src, { required int x, required int y, required int width, required int height, num radius = 0})
   image = img.copyCrop(
-    image,
+    image!,
     x: bunchPosition!.x0!,
     y: bunchPosition.y0!,
     width: bunchPosition.width(),
@@ -91,11 +102,8 @@ Future<Map<int, dynamic>> modifyImage({
   // displayImage = Image?.memory(imageBytes);
   // listImage = listTempImage;
 
-  print("Yoloresult = ${result}");
-
   Map<int, dynamic> output = {};
   output[0] = listTempImage;
   output[1] = listOfPredictionNumber;
-
   return output;
 }
